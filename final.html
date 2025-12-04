@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>今天吃什麼</title>
+
+    <style>
+
+        body{
+            margin:0;
+            font-family:Arial, Helvetica, sans-serif;
+        }
+
+        header {
+            display:flex;
+            background-color: orange;
+            color:white;
+            align-items: center;
+            justify-content: space-between;
+            
+        }
+
+        header h1 {
+            margin:5px;
+            font-size: 30px;
+        }
+
+        header button {
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: larger;
+        }
+
+        .container{
+            display:flex;
+            height: calc(100vh - 60px);
+            justify-content: space-between;
+        }
+
+        .map-area {
+            width:70%;
+        }
+
+        .map-frame {
+            width:100%;
+            height: calc(100vh - 60px);
+        }
+
+        .list{
+            width: 30%;
+            box-shadow: -2px 0 5px;
+            padding:30px;
+            overflow-y: auto;
+        }
+
+        .list h2 {
+            margin-top:0;
+        }
+    </style>
+
+    <script>
+
+        let restaurants = JSON.parse(localStorage.getItem("restaurants")) || [];
+        let mapFrame;
+        let storeListDiv;
+        let districtSelect;
+        
+        function start() {
+            window.alert("🍽️ 「今天吃什麼？」隨機抽選器\n\n總是在煩惱三餐嗎?\n\n讓我來幫你!點擊按鈕，我就會為你隨機挑選一道美味的選項。\n\n告別選擇困難症!立即開始吧!");    
+            
+            mapFrame = document.getElementById("mapFrame");
+            storeListDiv = document.getElementById("storeList");
+            districtSelect = document.getElementById("where");
+
+            let randomButton = document.getElementById("random");
+            randomButton.addEventListener("click",Random,false);
+
+            let addButton = document.getElementById("add");
+            addButton.addEventListener("click",Add,false);
+
+            renderList(restaurants);
+        }
+
+        function Random () {
+            if (restaurants.length === 0) {
+                window.alert("目前沒有餐廳可以選擇，請先新增店家");
+                return;
+            }
+            const randomIndex = Math.floor(Math.random() * restaurants.length);
+            const chosenRestaurant = restaurants[randomIndex];
+
+            alert(`恭喜！你今天要去吃：\n\n【${chosenRestaurant.name}】\n\n位於 ${chosenRestaurant.district}，地圖已為你更新！`);       
+        
+            updateMap(chosenRestaurant.name,chosenRestaurant.district);
+        }
+
+
+
+        function Add () {
+            let name = prompt("輸入新餐廳名稱 : ");
+            if(!name) return;
+
+            let district = districtSelect.value;
+
+            const newRestaurant = {
+                name:name,
+                district:district
+            };
+
+            restaurants.push(newRestaurant);
+            localStorage.setItem("restaurants",JSON.stringify(restaurants));
+            renderList(restaurants);
+
+            alert(`已成功新增【${name}】到清單！位於 ${district}。`);
+        }
+
+        function updateMap(name, district) {
+            const query = `${district} ${name} 餐廳`;
+            const mapSearchUrl = `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+    
+            mapFrame.src = mapSearchUrl;
+        }
+
+        function removeRestaurant(index) {
+            restaurants.splice(index, 1); 
+            localStorage.setItem('restaurants', JSON.stringify(restaurants)); 
+        }
+
+        function renderList(list) {
+            storeListDiv.innerHTML = ''; 
+    
+            if (list.length === 0) {
+                storeListDiv.innerHTML = '<p style="color:gray;">目前清單沒有餐廳，請點擊「新增店家」加入你的選項！</p>';
+                return;
+            }
+
+            const ul = document.createElement('ul');
+            ul.style.listStyle = 'none';
+            ul.style.paddingLeft = '0';
+            ul.style.marginTop = '20px';
+
+            list.forEach((restaurant, index) => {
+                const li = document.createElement('li');
+                li.style.padding = '8px 0';
+                li.style.borderBottom = '1px dashed #ccc';
+                li.innerHTML = `
+                    <strong>${restaurant.name}</strong> (${restaurant.district})
+                    <button onclick="removeRestaurant(${index}); renderList(restaurants);" style="float: right; color: red; background: none; border: none; cursor: pointer;">X</button>
+                `;
+                li.addEventListener('click', () => {
+                    updateMap(restaurant.name, restaurant.district);
+                });
+                ul.appendChild(li);
+            });
+
+            storeListDiv.appendChild(ul);
+        }
+            
+    
+        window.addEventListener("load",start,false);
+    </script>
+
+</head>
+<body>
+    
+    <header>
+        <h1>今天吃什麼?</h1>
+        <div>
+            <button id = "random">隨機抽取</button>
+            <button id = "add">新增店家</button>
+        </div>
+    </header>
+
+    <div class = "container">
+        <div class = "map-area">
+            <div id = "map">
+                <iframe id = mapFrame class="map-frame" src="https://www.google.com/maps/embed?pb=!1m16!1m12!1m3!1d57801.57495519922!2d121.71041707810772!3d25.115451218304766!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!2m1!1z6aSQ5buz!5e0!3m2!1szh-TW!2stw!4v1764218690662!5m2!1szh-TW!2stw" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>    
+            </div>
+        </div>
+
+        <div class = "list">
+            <h2>餐廳列表</h2>
+            <input type = "text" id = "search" placeholder = "搜尋店名">
+            
+            <select id ="where">
+                <option value = "中正區">中正區</option>
+                <option value = "信義區">信義區</option>
+                <option value = "仁愛區">仁愛區</option>
+                <option value = "中山區">中山區</option>
+                <option value = "安樂區">安樂區</option>
+                <option value = "七堵區">七堵區</option>
+                <option value = "暖暖區">暖暖區</option>
+            </select>
+            <div id = "storeList"></div>
+        </div>
+    </div>
+
+
+
+
+</body>
+</html>
