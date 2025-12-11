@@ -75,7 +75,7 @@
             background:#f5f5f5;
         }
 
-        /* 店家資訊卡區塊 */
+        /* 店家資訊卡區塊：預設隱藏 */
         #storeInfo{
             margin-top:20px;
             padding:12px 14px;
@@ -83,6 +83,7 @@
             border:1px solid #ddd;
             background:#fafafa;
             font-size:14px;
+            display:none; /* 一開始不顯示 */
         }
     </style>
 
@@ -91,8 +92,9 @@
         let mapFrame;
         let storeListDiv;
         let districtSelect;
-        let storeInfoDiv;   // 顯示店家資訊的區塊
-        
+        let storeInfoDiv;      // 顯示店家資訊的區塊
+        let activeStoreIndex = null; // 目前「打開資訊卡」的是哪一家（用 index 記）
+
         function start() {
             window.alert("🍽️ 「今天吃什麼？」隨機抽選器\n\n總是在煩惱三餐嗎?\n\n讓我來幫你!點擊按鈕，我就會為你隨機挑選一道美味的選項。\n\n告別選擇困難症!立即開始吧!");
             
@@ -111,11 +113,7 @@
             submit.addEventListener("click", Submit, false);
 
             renderList(restaurants);
-
-            // 若已有餐廳，預設顯示第一筆的資訊
-            if (restaurants.length > 0) {
-                showStoreInfo(restaurants[0]);
-            }
+            // ❌ 不再一開始就顯示店家資訊，等你點店家才顯示
         }
 
         function Random () {
@@ -135,11 +133,10 @@
                 updateMap(chosenRestaurant.name, chosenRestaurant.district);
             }
 
-            // 顯示店家資訊卡
-            showStoreInfo(chosenRestaurant);
+            // ✅ 不在這裡自動顯示資訊卡，等你點清單才顯示
         }
 
-        // 新增店家：多問一個「店家地址」＋「圖片網址」，並在輸入後直接跳到該位置
+        // 新增店家：多問一個「店家地址」＋「圖片網址」，但資訊卡一樣要靠你點清單才出現
         function Add () {
             let name = prompt("輸入新餐廳名稱 : ");
             if (!name) return;
@@ -159,8 +156,8 @@
             const newRestaurant = {
                 name: name,
                 district: district,
-                address: address,   // 多存 address
-                image: image        // 多存 image
+                address: address,
+                image: image
             };
 
             restaurants.push(newRestaurant);
@@ -172,9 +169,7 @@
                 updateMapByAddress(address, district);
             }
 
-            // 顯示剛新增的店家資訊
-            showStoreInfo(newRestaurant);
-
+            // ✅ 不在這裡顯示資訊卡，要點清單才顯示
             alert(`已成功新增【${name}】到清單！位於 ${district}。`);
         }
 
@@ -184,14 +179,14 @@
             updateMap(name, area);
         }
 
-        // ✅ 限定在「基隆市」的店名搜尋：基隆市 + 區 + 店名
+        // 限定在「基隆市」的店名搜尋：基隆市 + 區 + 店名
         function updateMap(name, district) {
             const query = `基隆市 ${district} ${name} 餐廳`;
             const mapSearchUrl = `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
             mapFrame.src = mapSearchUrl;
         }
 
-        // ✅ 限定在「基隆市」的地址搜尋：基隆市 + 區 + 地址
+        // 限定在「基隆市」的地址搜尋：基隆市 + 區 + 地址
         function updateMapByAddress(address, district) {
             const query = `基隆市 ${district} ${address}`;
             const mapSearchUrl = `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
@@ -201,6 +196,15 @@
         function removeRestaurant(index) {
             restaurants.splice(index, 1); 
             localStorage.setItem('restaurants', JSON.stringify(restaurants)); 
+
+            // 如果刪掉的是現在打開的那一家，就順便關閉資訊卡
+            if (activeStoreIndex === index) {
+                activeStoreIndex = null;
+                if (storeInfoDiv) {
+                    storeInfoDiv.style.display = "none";
+                    storeInfoDiv.innerHTML = "";
+                }
+            }
         }
 
         // 顯示右邊「店家資訊卡」
@@ -215,8 +219,6 @@
                 ? `<img src="${restaurant.image}" alt="${restaurant.name}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-bottom:8px;">`
                 : `<div style="width:100%;height:120px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;color:#777;font-size:13px;margin-bottom:8px;">尚未提供圖片</div>`;
 
-            // 這裡的「評價」不是 Google 的，而是導到你自己的評論平台
-            // 假設評論頁檔名叫 review.html，可用 ?store= 店名 傳過去
             const reviewUrl = `review.html?store=${encodeURIComponent(restaurant.name)}`;
 
             storeInfoDiv.innerHTML = `
@@ -231,6 +233,7 @@
                    前往評論平台
                 </a>
             `;
+            storeInfoDiv.style.display = "block";  // 確保顯示
         }
 
         function renderList(list) {
@@ -238,7 +241,11 @@
     
             if (list.length === 0) {
                 storeListDiv.innerHTML = '<p style="color:gray;">目前清單沒有餐廳，請點擊「新增店家」加入你的選項！</p>';
-                if (storeInfoDiv) storeInfoDiv.innerHTML = "";
+                if (storeInfoDiv) {
+                    storeInfoDiv.style.display = "none";
+                    storeInfoDiv.innerHTML = "";
+                }
+                activeStoreIndex = null;
                 return;
             }
 
@@ -260,13 +267,20 @@
                     <button onclick="removeRestaurant(${index}); renderList(restaurants); event.stopPropagation();" style="float: right; color: red; background: none; border: none; cursor: pointer;">X</button>
                 `;
 
-                // 點一下這個 li：
-                // 1. 地圖定位
-                // 2. 顯示店家資訊卡
+                // 點一下這個 li：切換資訊卡顯示/關閉 + 移動地圖
                 li.addEventListener('click', (e) => {
                     // 避免點到右邊 X 也觸發 li 的點擊
                     if (e.target.tagName.toLowerCase() === 'button') return;
 
+                    // 如果現在點的是「已經打開的那一家」→ 關閉資訊卡
+                    if (activeStoreIndex === index && storeInfoDiv.style.display !== "none") {
+                        storeInfoDiv.style.display = "none";
+                        storeInfoDiv.innerHTML = "";
+                        activeStoreIndex = null;
+                        return;
+                    }
+
+                    // 否則：顯示這一家
                     if (restaurant.address) {
                         updateMapByAddress(restaurant.address, restaurant.district);
                     } else {
@@ -274,6 +288,7 @@
                     }
 
                     showStoreInfo(restaurant);
+                    activeStoreIndex = index;
                 });
 
                 ul.appendChild(li);
@@ -334,7 +349,7 @@
 
             <div id="storeList"></div>
 
-            <!-- 這裡是新增的店家資訊顯示區塊 -->
+            <!-- 店家資訊顯示區塊（預設隱藏，點店家才出現） -->
             <div id="storeInfo"></div>
         </div>
     </div>
