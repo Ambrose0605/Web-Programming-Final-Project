@@ -57,6 +57,15 @@
         .list h2 {
             margin-top:0;
         }
+
+        #assess {
+            background-color:red;
+            color:white;
+            border-color:red;
+            position:relative;
+            left:50px;
+        }
+
     </style>
 
     <script>
@@ -78,6 +87,9 @@
 
             let addButton = document.getElementById("add");
             addButton.addEventListener("click",Add,false);
+
+            let submit = document.getElementById("submit");
+            submit.addEventListener("click",Submit,false);
 
             renderList(restaurants);
         }
@@ -113,6 +125,12 @@
             renderList(restaurants);
 
             alert(`已成功新增【${name}】到清單！位於 ${district}。`);
+        }
+
+        function Submit() {
+            const name = document.getElementById("search").value;
+            const area = document.getElementById("where").value;
+            updateMap(name,area);
         }
 
         function updateMap(name, district) {
@@ -192,6 +210,10 @@
                 <option value = "七堵區">七堵區</option>
                 <option value = "暖暖區">暖暖區</option>
             </select>
+
+            <button id = "submit">送出</button>
+
+            <button id = "assess">評價</button>
             <div id = "storeList"></div>
         </div>
     </div>
