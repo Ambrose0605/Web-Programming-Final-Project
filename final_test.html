@@ -1,1 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>今天吃什麼</title>
 
+    <style>
+        body{
+            margin:0;
+            font-family:Arial, Helvetica, sans-serif;
+        }
+
+        header {
+            display:flex;
+            background-color: orange;
+            color:white;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header h1 {
+            margin:5px;
+            font-size: 30px;
+        }
+
+        header button {
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: larger;
+            cursor:pointer;
+        }
+
+        .container{
+            display:flex;
+            height: calc(100vh - 60px);
+            justify-content: space-between;
+        }
+
+        .map-area {
+            width:70%;
+        }
+
+        .map-frame {
+            width:100%;
+            height: calc(100vh - 60px);
+        }
+
+        .list{
+            width: 30%;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+            padding:30px;
+            overflow-y: auto;
+            background:#fff;
+            box-sizing:border-box;
+        }
+
+        .list h2 {
+            margin-top:0;
+        }
+
+        #assess {
+            background-color:red;
+            color:white;
+            border-color:red;
+            position:relative;
+            left:50px;
+        }
+
+        /* 店家清單項目 hover 效果 */
+        .store-item{
+            cursor:pointer;
+        }
+        .store-item:hover{
+            background:#f5f5f5;
+        }
+
+        /* 店家資訊卡區塊 */
+        #storeInfo{
+            margin-top:20px;
+            padding:12px 14px;
+            border-radius:8px;
+            border:1px solid #ddd;
+            background:#fafafa;
+            font-size:14px;
+        }
+    </style>
+
+    <script>
+        let restaurants = JSON.parse(localStorage.getItem("restaurants")) || [];
+        let mapFrame;
+        let storeListDiv;
+        let districtSelect;
+        let storeInfoDiv;   // 顯示店家資訊的區塊
+        
+        function start() {
+            window.alert("🍽️ 「今天吃什麼？」隨機抽選器\n\n總是在煩惱三餐嗎?\n\n讓我來幫你!點擊按鈕，我就會為你隨機挑選一道美味的選項。\n\n告別選擇困難症!立即開始吧!");
+            
+            mapFrame      = document.getElementById("mapFrame");
+            storeListDiv  = document.getElementById("storeList");
+            districtSelect= document.getElementById("where");
+            storeInfoDiv  = document.getElementById("storeInfo");
+
+            let randomButton = document.getElementById("random");
+            randomButton.addEventListener("click", Random, false);
+
+            let addButton = document.getElementById("add");
+            addButton.addEventListener("click", Add, false);
+
+            let submit = document.getElementById("submit");
+            submit.addEventListener("click", Submit, false);
+
+            renderList(restaurants);
+
+            // 若已有餐廳，預設顯示第一筆的資訊
+            if (restaurants.length > 0) {
+                showStoreInfo(restaurants[0]);
+            }
+        }
+
+        function Random () {
+            if (restaurants.length === 0) {
+                window.alert("目前沒有餐廳可以選擇，請先新增店家");
+                return;
+            }
+            const randomIndex = Math.floor(Math.random() * restaurants.length);
+            const chosenRestaurant = restaurants[randomIndex];
+
+            alert(`恭喜！你今天要去吃：\n\n【${chosenRestaurant.name}】\n\n位於 ${chosenRestaurant.district}，地圖已為你更新！`);
+        
+            // 若有地址就用地址定位，沒有就用區+店名
+            if (chosenRestaurant.address) {
+                updateMapByAddress(chosenRestaurant.address, chosenRestaurant.district);
+            } else {
+                updateMap(chosenRestaurant.name, chosenRestaurant.district);
+            }
+
+            // 顯示店家資訊卡
+            showStoreInfo(chosenRestaurant);
+        }
+
+        // 新增店家：多問一個「店家地址」＋「圖片網址」，並在輸入後直接跳到該位置
+        function Add () {
+            let name = prompt("輸入新餐廳名稱 : ");
+            if (!name) return;
+
+            let district = districtSelect.value;
+
+            let address = prompt("輸入店家地址（例如：○○路123號，不用再打基隆市）:");
+            if (!address) {
+                address = "";
+            }
+
+            let image = prompt("輸入店家圖片網址（可留空）:");
+            if (!image) {
+                image = "";
+            }
+
+            const newRestaurant = {
+                name: name,
+                district: district,
+                address: address,   // 多存 address
+                image: image        // 多存 image
+            };
+
+            restaurants.push(newRestaurant);
+            localStorage.setItem("restaurants", JSON.stringify(restaurants));
+            renderList(restaurants);
+
+            // 若有填地址，就直接用地址跳地圖
+            if (address.trim() !== "") {
+                updateMapByAddress(address, district);
+            }
+
+            // 顯示剛新增的店家資訊
+            showStoreInfo(newRestaurant);
+
+            alert(`已成功新增【${name}】到清單！位於 ${district}。`);
+        }
+
+        function Submit() {
+            const name = document.getElementById("search").value;
+            const area = document.getElementById("where").value;
+            updateMap(name, area);
+        }
+
+        // ✅ 限定在「基隆市」的店名搜尋：基隆市 + 區 + 店名
+        function updateMap(name, district) {
+            const query = `基隆市 ${district} ${name} 餐廳`;
+            const mapSearchUrl = `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+            mapFrame.src = mapSearchUrl;
+        }
+
+        // ✅ 限定在「基隆市」的地址搜尋：基隆市 + 區 + 地址
+        function updateMapByAddress(address, district) {
+            const query = `基隆市 ${district} ${address}`;
+            const mapSearchUrl = `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+            mapFrame.src = mapSearchUrl;
+        }
+
+        function removeRestaurant(index) {
+            restaurants.splice(index, 1); 
+            localStorage.setItem('restaurants', JSON.stringify(restaurants)); 
+        }
+
+        // 顯示右邊「店家資訊卡」
+        function showStoreInfo(restaurant) {
+            if (!storeInfoDiv) return;
+
+            const addressText = restaurant.address
+                ? `基隆市 ${restaurant.district} ${restaurant.address}`
+                : `基隆市 ${restaurant.district}`;
+
+            const imgHtml = restaurant.image
+                ? `<img src="${restaurant.image}" alt="${restaurant.name}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-bottom:8px;">`
+                : `<div style="width:100%;height:120px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;color:#777;font-size:13px;margin-bottom:8px;">尚未提供圖片</div>`;
+
+            // 這裡的「評價」不是 Google 的，而是導到你自己的評論平台
+            // 假設評論頁檔名叫 review.html，可用 ?store= 店名 傳過去
+            const reviewUrl = `review.html?store=${encodeURIComponent(restaurant.name)}`;
+
+            storeInfoDiv.innerHTML = `
+                <h3 style="margin:0 0 6px 0;">${restaurant.name}</h3>
+                ${imgHtml}
+                <p style="margin:4px 0;">📍 ${addressText}</p>
+                <p style="margin:4px 0;">⭐ 評價：這裡顯示的是你們平台自己的評價（非 Google 評價）。</p>
+                <p style="margin:4px 0;font-size:12px;color:#666;">點擊下方按鈕可前往評論平台撰寫或查看其他人的評論。</p>
+                <a href="${reviewUrl}"
+                   target="_blank"
+                   style="display:inline-block;padding:6px 10px;border-radius:4px;background:#007bff;color:#fff;text-decoration:none;font-size:13px;">
+                   前往評論平台
+                </a>
+            `;
+        }
+
+        function renderList(list) {
+            storeListDiv.innerHTML = ''; 
+    
+            if (list.length === 0) {
+                storeListDiv.innerHTML = '<p style="color:gray;">目前清單沒有餐廳，請點擊「新增店家」加入你的選項！</p>';
+                if (storeInfoDiv) storeInfoDiv.innerHTML = "";
+                return;
+            }
+
+            const ul = document.createElement('ul');
+            ul.style.listStyle = 'none';
+            ul.style.paddingLeft = '0';
+            ul.style.marginTop = '20px';
+
+            list.forEach((restaurant, index) => {
+                const li = document.createElement('li');
+                li.className = "store-item";
+                li.style.padding = '8px 0';
+                li.style.borderBottom = '1px dashed #ccc';
+
+                // 顯示名稱 + 區，如果有地址就多顯示一行
+                li.innerHTML = `
+                    <strong>${restaurant.name}</strong> (${restaurant.district})<br>
+                    ${restaurant.address ? `<span style="font-size: 12px; color: #555;">${restaurant.address}</span>` : ""}
+                    <button onclick="removeRestaurant(${index}); renderList(restaurants); event.stopPropagation();" style="float: right; color: red; background: none; border: none; cursor: pointer;">X</button>
+                `;
+
+                // 點一下這個 li：
+                // 1. 地圖定位
+                // 2. 顯示店家資訊卡
+                li.addEventListener('click', (e) => {
+                    // 避免點到右邊 X 也觸發 li 的點擊
+                    if (e.target.tagName.toLowerCase() === 'button') return;
+
+                    if (restaurant.address) {
+                        updateMapByAddress(restaurant.address, restaurant.district);
+                    } else {
+                        updateMap(restaurant.name, restaurant.district);
+                    }
+
+                    showStoreInfo(restaurant);
+                });
+
+                ul.appendChild(li);
+            });
+
+            storeListDiv.appendChild(ul);
+        }
+            
+        window.addEventListener("load", start, false);
+    </script>
+
+</head>
+<body>
+    
+    <header>
+        <h1>今天吃什麼?</h1>
+        <div>
+            <button id="random">隨機抽取</button>
+            <button id="add">新增店家</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="map-area">
+            <div id="map">
+                <!-- 保持原本的 Google Maps iframe 初始地圖（也是基隆市範圍） -->
+                <iframe
+                    id="mapFrame"
+                    class="map-frame"
+                    src="https://www.google.com/maps/embed?pb=!1m16!1m12!1m3!1d57801.57495519922!2d121.71041707810772!3d25.115451218304766!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!2m1!1z6aSQ5buz!5e0!3m2!1szh-TW!2stw!4v1764218690662!5m2!1szh-TW!2stw"
+                    width="600"
+                    height="450"
+                    style="border:0;"
+                    allowfullscreen=""
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                ></iframe>    
+            </div>
+        </div>
+
+        <div class="list">
+            <h2>餐廳列表</h2>
+            <input type="text" id="search" placeholder="搜尋店名">
+            
+            <select id="where">
+                <option value="中正區">中正區</option>
+                <option value="信義區">信義區</option>
+                <option value="仁愛區">仁愛區</option>
+                <option value="中山區">中山區</option>
+                <option value="安樂區">安樂區</option>
+                <option value="七堵區">七堵區</option>
+                <option value="暖暖區">暖暖區</option>
+            </select>
+
+            <button id="submit">送出</button>
+
+            <button id="assess">評價</button>
+
+            <div id="storeList"></div>
+
+            <!-- 這裡是新增的店家資訊顯示區塊 -->
+            <div id="storeInfo"></div>
+        </div>
+    </div>
+</body>
+</html>
