@@ -59,13 +59,7 @@
             margin-top:0;
         }
 
-        #assess {
-            background-color:red;
-            color:white;
-            border-color:red;
-            position:relative;
-            left:50px;
-        }
+        
 
         /* 店家清單項目 hover 效果 */
         .store-item{
@@ -219,8 +213,8 @@
                 ? `<img src="${restaurant.image}" alt="${restaurant.name}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-bottom:8px;">`
                 : `<div style="width:100%;height:120px;border-radius:8px;background:#eee;display:flex;align-items:center;justify-content:center;color:#777;font-size:13px;margin-bottom:8px;">尚未提供圖片</div>`;
 
-            const reviewUrl = `review.html?store=${encodeURIComponent(restaurant.name)}`;
-
+            const reviewUrl = `https://iamnjrgfy.github.io/comment.html?store=${encodeURIComponent(restaurant.name)}`;
+            
             storeInfoDiv.innerHTML = `
                 <h3 style="margin:0 0 6px 0;">${restaurant.name}</h3>
                 ${imgHtml}
@@ -264,7 +258,7 @@
                 li.innerHTML = `
                     <strong>${restaurant.name}</strong> (${restaurant.district})<br>
                     ${restaurant.address ? `<span style="font-size: 12px; color: #555;">${restaurant.address}</span>` : ""}
-                    <button onclick="removeRestaurant(${index}); renderList(restaurants); event.stopPropagation();" style="float: right; color: red; background: none; border: none; cursor: pointer;">X</button>
+                    <button onclick="removeRestaurant(${index}); renderList(restaurants); event.stopPropagation();" style="float: right; position : relative; bottom : 20px; color: red; background: none; border: none; cursor: pointer;">X</button>
                 `;
 
                 // 點一下這個 li：切換資訊卡顯示/關閉 + 移動地圖
@@ -344,8 +338,6 @@
             </select>
 
             <button id="submit">送出</button>
-
-            <button id="assess">評價</button>
 
             <div id="storeList"></div>
 
